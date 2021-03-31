@@ -60,6 +60,7 @@ app.use(function(req, res, next) {
 
 var device_details_server = new Schema({
 	user_ip : String,
+    user_country : String,
 	user_city : String,
 	user_state : String,
 	unique_id: String,
@@ -176,7 +177,6 @@ app.post('/token_load', urlencodedParser, function(req, res) {
     		var vpn_status = ip_data.proxy != 'no';
     		var token_load = { server_status: server_mode, vpn_status : vpn_status, nonce: nonce, api_key: api_key };
     		var session_doc = {user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id: unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , nonce: nonce, api_key: api_key};
-            console.log(session_doc);
             device_details_model.create(session_doc, function(err, result) {
     			if (!err) {
     				res.send(JSON.stringify(token_load))
