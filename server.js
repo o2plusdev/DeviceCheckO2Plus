@@ -248,6 +248,7 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
                             if (result.signature && result.certificate.commonName == "attest.android.com" && nonce_string == nonce && time_diff <= 180000) {
                                 // error 200 : No error
                                 var redirect_token = cryptr.encrypt(JSON.stringify({ timestamp: moment().format('x'), unique_id: unique_id, user_ip : user_ip , user_country : user_country , user_city : user_city, user_state : user_state , build_product : build_product, build_model : build_model , build_manufacturer : build_manufacturer}));
+                                console.log(redirect_token);
                                 user_details_model.find({unique_id: unique_id }, function(err, result){
                                 	var number_users = result.length; 
                                 	if (number_users == 0){
@@ -255,7 +256,7 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
                                 		user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 200 : No error and registration', solution : ' '}
                                 		device_server_log_details_model.create(user_log, function(err, result) {
                                 			if(!err){
-                                				var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/registration_page?token=" + redirect_token };
+                                				var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/api/registration_page?token=" + redirect_token };
                                 				res.send(JSON.stringify(response_code));
                                 			}
                                 		})                                		
@@ -264,7 +265,7 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
                                 		user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 200 : No error and login', solution : ' '}
                                 		device_server_log_details_model.create(user_log, function(err, result) {
                                 			if(!err){
-                                				var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/login_page?token=" + redirect_token };
+                                				var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/api/login_page?token=" + redirect_token };
                                 				res.send(JSON.stringify(response_code));
                                 			}
                                 		})
