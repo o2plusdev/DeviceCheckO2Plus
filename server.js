@@ -248,6 +248,7 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
                                 // error 200 : No error
                                 var redirect_token = cryptr.encrypt(JSON.stringify({ timestamp: moment().format('x'), unique_id: unique_id, user_ip : user_ip , user_country : user_country , user_city : user_city, user_state : user_state , build_product : build_product, build_model : build_model , build_manufacturer : build_manufacturer}));
                                 console.log(redirect_token);
+                                console.log(user_country);
                                 user_details_model.find({unique_id: unique_id }, function(err, result){
                                 	var number_users = result.length; 
                                 	if (number_users == 0){
