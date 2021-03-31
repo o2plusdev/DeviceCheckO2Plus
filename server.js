@@ -158,6 +158,7 @@ app.post('/token_load', urlencodedParser, function(req, res) {
     request('https://api.allorigins.win/get?url=' + encodeURIComponent('https://proxycheck.io/v2/' + user_ip + '?vpn=1&asn=1'), function (error, response, body) {
     	if (!error && response.statusCode === 200) {
     		var ip_data = JSON.parse(JSON.parse(body).contents)[user_ip];
+            console.log(ip_data);
     		var user_country = ip_data.isocode;
     		var user_city = ip_data.city;
     		var user_state = ip_data.region;
@@ -176,7 +177,7 @@ app.post('/token_load', urlencodedParser, function(req, res) {
     		var vpn_status = ip_data.proxy != 'no';
     		var token_load = { server_status: server_mode, vpn_status : vpn_status, nonce: nonce, api_key: api_key };
     		var session_doc = {user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id: unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , nonce: nonce, api_key: api_key};
-    		device_details_model.create(session_doc, function(err, result) {
+            device_details_model.create(session_doc, function(err, result) {
     			if (!err) {
     				res.send(JSON.stringify(token_load))
     			}
