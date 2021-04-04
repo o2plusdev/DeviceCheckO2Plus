@@ -15,7 +15,8 @@ var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 const expressip = require('express-ip');
 var useragent = require('express-useragent');
-
+const rateLimit = require("express-rate-limit");
+var MongoStore = require('rate-limit-mongo');
 
 
 // app version change here 
@@ -33,9 +34,9 @@ var safetynet_api = safetynet_api_array[safetynet_random_api];
 
 
 if (process.env.NODE_ENV === "production") {
-	console.log("server is in production mode")
+    console.log("server is in production mode")
 } else {
-	console.log("server is not in production mode");
+    console.log("server is not in production mode");
 }
 
 var app = express();
@@ -49,6 +50,30 @@ app.use(
   })
 );
 
+// redirect to any url except the present one
+
+var template = '<script type="text/javascript"> window.location.href="about:blank"; </script>';
+
+
+var limiter = new rateLimit({
+    store: new MongoStore({
+        uri: "mongodb+srv://C6hivgPRCjxKGF9f:yW3c3fc8vpM0ego368z80271RCH@o2plusdatabase.vwl00.mongodb.net/userRateLimit",
+        // should match windowMs
+        collectionName: 'userRateLimit',
+        expireTimeMs: 15 * 60 * 1000,
+        errorHandler: console.error.bind(null, 'rate-limit-mongo')
+        // see Configuration section for more options and details
+    }),
+    message: template,
+    max: 100,
+    // should match expireTimeMs
+    windowMs: 15 * 60 * 1000
+});
+
+//  apply to all requests
+app.set('trust proxy', 1);
+app.use(limiter);
+
 app.use(function(req, res, next) {
     if (req.headers['x-forwarded-proto'] !== 'https') {
         return res.status(404);
@@ -59,85 +84,75 @@ app.use(function(req, res, next) {
 // update the version of app here 
 
 var device_details_server = new Schema({
-	user_ip : String,
+    user_ip : String,
     user_country : String,
-	user_city : String,
-	user_state : String,
-	unique_id: String,
-	build_product : String, 
-	build_model: String, 
-	build_manufacturer: String, 
+    user_city : String,
+    user_state : String,
+    unique_id: String,
+    build_product : String, 
+    build_model: String, 
+    build_manufacturer: String, 
     nonce: String,
     api_key: String,
     expireAt: {
-    	type: Date,
-    	default: Date.now,
-    	index: { expires: '1m'} // , partialFilterExpression : {nonce: "false"} }, // add index to activate TTL
+        type: Date,
+        default: Date.now,
+        index: { expires: '1m'} // , partialFilterExpression : {nonce: "false"} }, // add index to activate TTL
     }
 }, {
     collection: 'device_details'
 });
 
 
-
 var connect = mongoose.createConnection('mongodb+srv://C6hivgPRCjxKGF9f:yW3c3fc8vpM0ego368z80271RCH@o2plusdatabase.vwl00.mongodb.net/devicedetails?retryWrites=true&w=majority', { useUnifiedTopology: true, useNewUrlParser: true, useFindAndModify: false, useCreateIndex: true });
 var device_details_model = connect.model('device_details_model', device_details_server);
 
-var device_server_log_details_server = new Schema({
-	user_ip : String,
-	user_city : String,
-	user_state : String,
-	unique_id: String,
-	build_product : String, 
-	build_model: String, 
-	build_manufacturer: String, 
-    api_key: String,
-    log_report: String,
-    solution: String,
-    expireAt: {
-    	type: Date,
-    	default: Date.now,
-    	index: { expires: '3h' },
-    }
-    //expireAt: {
-    //	type: Date,
-      	/* Defaults 7 days from now */
-   	//	default: new Date(new Date().valueOf() + 600000),
-    //  	/* Remove doc 60 seconds after specified date */
-    //  	expires: 60
-    //}
-}, {
-    collection: 'device_server_log_details'
-});
 
-var connect = mongoose.createConnection('mongodb+srv://C6hivgPRCjxKGF9f:yW3c3fc8vpM0ego368z80271RCH@o2plusdatabase.vwl00.mongodb.net/device_server_log_details?retryWrites=true&w=majority', { useUnifiedTopology: true, useNewUrlParser: true, useFindAndModify: false, useCreateIndex: true });
-var device_server_log_details_model = connect.model('device_details_model', device_server_log_details_server);
+    //expireAt: {
+    //  type: Date,
+        /* Defaults 7 days from now */
+    //  default: new Date(new Date().valueOf() + 600000),
+    //      /* Remove doc 60 seconds after specified date */
+    //      expires: 60
+    //}
+
 
 var user_details_server = new Schema({
-    username: String,
+    username: {
+        type: String,
+        unique: true
+    },
     password: String,
     branch: String,
-    phonenumber: Number,
+    phonenumber: {
+        type: Number,
+        unique: true
+    },
     phoneverified: Boolean,
-    unique_id: String,
-    userblocked: Boolean,
-    video_watch_hour: Number,
+    unique_id: {
+        type: String,
+        unique: true
+    },
     logincount: Number,
-    lec_quality: String,
+    video_watch_hour: Number,
     points: Number,
     rank: Number,
+    token_coins: Number,
     like: { type: [String], default: undefined },
     dislike: { type: [String], default: undefined },
-    block_reason: String
+    userblocked: Boolean,
+    block_reason: String,
+    server: Number
 }, {
     collection: 'user_details'
 });
-
-var connect1 = mongoose.createConnection('mongodb+srv://C6hivgPRCjxKGF9f:yW3c3fc8vpM0ego368z80271RCH@o2plusdatabase.vwl00.mongodb.net/userdetails?retryWrites=true&w=majority', { useUnifiedTopology: true, useNewUrlParser: true, useFindAndModify: false, useCreateIndex: true });
+//username, password, branch, phonenumber, phoneverified, unique_id, logincount, video_watch_hour, points, rank, token_coins, like, dislike, userblocked, block_reason
+var connect1 = mongoose.createConnection("mongodb+srv://C6hivgPRCjxKGF9f:yW3c3fc8vpM0ego368z80271RCH@o2plusdatabase.vwl00.mongodb.net/userdetails?retryWrites=true&w=majority", { useUnifiedTopology: true, useNewUrlParser: true, useFindAndModify: false });
 var user_details_model = connect1.model('user_details_model', user_details_server);
 
+
 app.get('/', function(req, res) {
-	res.send('Server is Online');
+    res.send('Server is Online');
 })
 
 
@@ -157,33 +172,33 @@ app.post('/token_load', urlencodedParser, function(req, res) {
     var user_ip_info = req.ipInfo;
     var user_ip = user_ip_info.ip;
     request('https://api.allorigins.win/get?url=' + encodeURIComponent('https://proxycheck.io/v2/' + user_ip + '?vpn=1&asn=1'), function (error, response, body) {
-    	if (!error && response.statusCode === 200) {
-    		var ip_data = JSON.parse(JSON.parse(body).contents)[user_ip];
-    		var user_country = ip_data.isocode;
-    		var user_city = ip_data.city;
-    		var user_state = ip_data.region;
-    		var user_proxy = ip_data.proxy;
-    		var nonce = cryptoRandomString({ length: 32, type: 'numeric' });
-    		const api_key = safetynet_api;
-    		var fingerprint = req.body.fingerprint;
-    		var webview_version = req.body.webview_version;
-    		var unique_id = req.body.unique_id;
-    		var build_fingerprint = req.body.build_fingerprint;
-    		var build_hardware = req.body.build_hardware;
-    		var build_hardware_array = build_hardware.split(":");
-    		var build_product = build_hardware_array[0];
-    		var build_model = build_hardware_array[1];
-    		var build_manufacturer = build_hardware_array[2];
-    		var vpn_status = ip_data.proxy != 'no';
-    		var token_load = { server_status: server_mode, vpn_status : vpn_status, nonce: nonce, api_key: api_key };
-    		var session_doc = {user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id: unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , nonce: nonce, api_key: api_key};
+        if (!error && response.statusCode === 200) {
+            var ip_data = JSON.parse(JSON.parse(body).contents)[user_ip];
+            var user_country = ip_data.isocode;
+            var user_city = ip_data.city;
+            var user_state = ip_data.region;
+            var user_proxy = ip_data.proxy;
+            var nonce = cryptoRandomString({ length: 32, type: 'numeric' });
+            const api_key = safetynet_api;
+            var fingerprint = req.body.fingerprint;
+            var webview_version = req.body.webview_version;
+            var unique_id = req.body.unique_id;
+            var build_fingerprint = req.body.build_fingerprint;
+            var build_hardware = req.body.build_hardware;
+            var build_hardware_array = build_hardware.split(":");
+            var build_product = build_hardware_array[0];
+            var build_model = build_hardware_array[1];
+            var build_manufacturer = build_hardware_array[2];
+            var vpn_status = ip_data.proxy != 'no';
+            var token_load = { server_status: server_mode, vpn_status : vpn_status, nonce: nonce, api_key: api_key };
+            var session_doc = {user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id: unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , nonce: nonce, api_key: api_key};
             device_details_model.create(session_doc, function(err, result) {
-    			if (!err) {
-    				res.send(JSON.stringify(token_load))
-    			}
-    		})
-		}
-	})
+                if (!err) {
+                    res.send(JSON.stringify(token_load))
+                }
+            })
+        }
+    })
 })
 
 app.post('/device_auth', urlencodedParser, function(req, res) {
@@ -194,13 +209,13 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
     var search_id = { nonce: nonce_string_temp };
     device_details_model.find(search_id, function(err, result) {
         if (!err) {
-        	var user_ip = result[0].user_ip;
-        	var user_country = result[0].user_country;
-        	var user_city = result[0].user_city;
-        	var user_state = result[0].user_state;
-        	var build_product = result[0].build_product;
-        	var build_model = result[0].build_model;
-        	var build_manufacturer = result[0].build_manufacturer;
+            var user_ip = result[0].user_ip;
+            var user_country = result[0].user_country;
+            var user_city = result[0].user_city;
+            var user_state = result[0].user_state;
+            var build_product = result[0].build_product;
+            var build_model = result[0].build_model;
+            var build_manufacturer = result[0].build_manufacturer;
             var unique_id = result[0].unique_id;
             var nonce = result[0].nonce;
             var api_key = result[0].api_key;
@@ -230,7 +245,7 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
                                 .join(', ');
                             jwt.verify(signedAttestation, token_certificate, { algorithms: ['RS256'] }, function(err, payload) {
                                 if (err) {
-                                	console(err)
+                                    console(err)
                                     var response_code = { signature: false, payload: null };
                                     resolve(response_code);
                                 } else {
@@ -250,56 +265,46 @@ app.post('/device_auth', urlencodedParser, function(req, res) {
                                 var redirect_token = cryptr.encrypt(JSON.stringify({ timestamp: moment().format('x'), unique_id: unique_id, user_ip : user_ip , user_country : user_country , user_city : user_city, user_state : user_state , build_product : build_product, build_model : build_model , build_manufacturer : build_manufacturer}));
                                 console.log(redirect_token);
                                 user_details_model.find({unique_id: unique_id }, function(err, result){
-                                	var number_users = result.length; 
-                                	if (number_users == 0){
-                                		// error 200 : No error and registration
-                                		user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 200 : No error and registration', solution : ' '}
-                                		device_server_log_details_model.create(user_log, function(err, result) {
-                                			if(!err){
-                                				var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/api/registration_page?token=" + redirect_token };
-                                				res.send(JSON.stringify(response_code));
-                                			}
-                                		})                                		
-                                	} else if (number_users == 1){
-                                		// error 200 : No error and login
-                                		user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 200 : No error and login', solution : ' '}
-                                		device_server_log_details_model.create(user_log, function(err, result) {
-                                			if(!err){
-                                				var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/api/login_page?token=" + redirect_token };
-                                				res.send(JSON.stringify(response_code));
-                                			}
-                                		})
-                                	} else {
-                                		// error 273 : multiple unique ids founds. need to purge
-                                		user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 273 : multiple unique ids founds. need to purge', solution : 'Multiple unique ids founds. Maybe because someones phone shows unqiue id as null. Need to purge those users and study the issue'}
-                                		device_server_log_details_model.create(user_log, function(err, result) {
-                                			if(!err){
-                                				var response_code = { status: false, reason: 273, redirect_url: "about:blank" };
-                        						res.send(JSON.stringify(response_code));
-                  							}
-                        				})
-                                	}
+                                    var number_users = result.length; 
+                                    if (number_users == 0){
+                                        // error 200 : No error and registration
+                                        user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 200 : No error and registration', solution : ' '}
+
+                                                var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/api/registration_page?token=" + redirect_token };
+                                                res.send(JSON.stringify(response_code));
+                                                                                
+                                    } else if (number_users == 1){
+                                        // error 200 : No error and login
+                                        user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 200 : No error and login', solution : ' '}
+
+                                                var response_code = { status: true, reason: 200, redirect_url: "https://o2plususerinterface-server" + random_server + ".herokuapp.com/api/login_page?token=" + redirect_token };
+                                                res.send(JSON.stringify(response_code));
+
+                                    } else {
+                                        // error 273 : multiple unique ids founds. need to purge
+                                        user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id, build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 273 : multiple unique ids founds. need to purge', solution : 'Multiple unique ids founds. Maybe because someones phone shows unqiue id as null. Need to purge those users and study the issue'}
+
+                                                var response_code = { status: false, reason: 273, redirect_url: "about:blank" };
+                                                res.send(JSON.stringify(response_code));
+
+                                    }
                                 })
                             } else {
-                            	// error 249 : signature failed because of app tampering 
-                            	user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id,  build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 249 : signature failed because of app tampering', solution : 'No solution, maybe change timing to more than 3 min. App signature should not be tampered'}
-                        		device_server_log_details_model.create(user_log, function(err, result) {
-                        			if(!err){
-                        				var response_code = { status: false, reason: 249, redirect_url: "about:blank" };
-                        				res.send(JSON.stringify(response_code));
-                        			}
-                        		})
+                                // error 249 : signature failed because of app tampering 
+                                user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id,  build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 249 : signature failed because of app tampering', solution : 'No solution, maybe change timing to more than 3 min. App signature should not be tampered'}
+
+                                        var response_code = { status: false, reason: 249, redirect_url: "about:blank" };
+                                        res.send(JSON.stringify(response_code));
+
                             }
                         });
                     } else {
                         // error 803 : google rejected the signature 
                         user_log ={user_ip : user_ip, user_country : user_country, user_city : user_city, user_state : user_state, unique_id : unique_id,  build_product : build_product, build_model : build_model, build_manufacturer : build_manufacturer , api_key : api_key, log_report : 'error 803 : google rejected the signature', solution : 'change the api key'}
-                        device_server_log_details_model.create(user_log, function(err, result) {
-                        	if(!err){
-                        		var response_code = { status: false, reason: 803, redirect_url: "about:blank" };
-                        		res.send(JSON.stringify(response_code));
-                        	}
-                        })
+
+                                var response_code = { status: false, reason: 803, redirect_url: "about:blank" };
+                                res.send(JSON.stringify(response_code));
+
                     }
                 }
             })
